@@ -6,7 +6,7 @@
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SANA</title>
+    <title>Fast-dLLM</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -583,6 +583,30 @@
         </div>
 
         <div class="description-content">
+            <h2>Case Study of Parallel Decoding</h2>
+              <p> This case study compares the generation process with and without parallel decoding. 
+                  The left panel shows standard decoding, where tokens are revealed one by one at each step. 
+                  The right panel demonstrates our confidence-aware parallel decoding, 
+                  which allows multiple confident tokens to be unmasked in parallel at each step. 
+                  As shown, parallel decoding significantly accelerates the generation process while maintaining sequence quality. 
+                  The color legend indicates the generation step for each token.
+              </p>
+          </div>
+          <div style="width: 100%; display: flex; justify-content: center;">
+            <figure style="display: flex; flex-direction: column; align-items: center; max-width: 900px; width: 100%;">
+              <div style="display: flex; justify-content: center; gap: 24px; width: 100%;">
+                  <img src="asset/llada.gif" alt="LLaDA demo" class="inserted-image" style="max-width: 48%; min-width: 120px;">
+                  <img src="asset/parallel.gif" alt="Parallel decoding demo" class="inserted-image" style="max-width: 48%; min-width: 120px;">
+              </div>
+              <figcaption style="margin-top: 12px; text-align: center; color: #555; font-size: 1em;">
+                  <b>Left:</b> Standard decoding (LLaDA). 
+                  <b>Right:</b> Confidence-aware parallel decoding.
+              </figcaption>
+            </figure>
+          </div>
+
+
+        <div class="description-content">
             <h2>Several Core Design Details for Efficiency</h2>
             
             <p>
@@ -626,22 +650,7 @@
         </div>
 
 
-        <div class="description-content">
-          <h2>Case Study of Parallel Decoding</h2>
-            <p> This case study compares the generation process with and without parallel decoding. 
-                The left panel shows standard decoding, where tokens are revealed one by one at each step. 
-                The right panel demonstrates our confidence-aware parallel decoding, 
-                which allows multiple confident tokens to be unmasked in parallel at each step. 
-                As shown, parallel decoding significantly accelerates the generation process while maintaining sequence quality. 
-                The color legend indicates the generation step for each token.
-            </p>
-        </div>
-        <div style="width: 100%; display: flex; justify-content: center;">
-            <figure style="display: flex; justify-content: center; gap: 24px; max-width: 900px; width: 100%;">
-                <img src="asset/llada.gif" alt="LLaDA demo" class="inserted-image" style="max-width: 48%; min-width: 120px;">
-                <img src="asset/parallel.gif" alt="Parallel decoding demo" class="inserted-image" style="max-width: 48%; min-width: 120px;">
-            </figure>
-          </div>
+
         <!--BibTex citation -->
         <!-- <div class="description-content">
             <h2 class="title">BibTeX</h2>
