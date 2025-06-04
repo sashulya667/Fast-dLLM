@@ -5,4 +5,5 @@ __pycache__/
 llada/output/
 llada/evals_results/
 dream/evals_results/
-asset/.DS_Store
+.DS_Store
+**/.DS_Store
