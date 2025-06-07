@@ -481,7 +481,7 @@ css = '''
 '''
 def create_chatbot_demo():
     with gr.Blocks(css=css) as demo:
-        gr.Markdown("# LLaDA - Large Language Diffusion Model Demo")
+        gr.Markdown("#Fast-dLLM: Training-free Acceleration of Diffusion LLM by Enabling KV Cache and Parallel Decoding")
         gr.Markdown("[code](https://github.com/NVlabs/Fast-dLLM), [project page](https://nvlabs.github.io/Fast-dLLM/)")
         
         # STATE MANAGEMENT
