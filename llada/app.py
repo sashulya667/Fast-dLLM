@@ -515,7 +515,7 @@ def create_chatbot_demo():
         # Duplicate conversation interface
         with gr.Row():
             with gr.Column(scale=3):
-                chatbot_ui_copy = gr.Chatbot(label="Conversation (Copy)", height=500)
+                chatbot_ui_copy = gr.Chatbot(label="Conversation (Accelerated)", height=500)
             with gr.Column(scale=2):
                 output_vis_copy = gr.HighlightedText(
                     label="Denoising Process Visualization",
