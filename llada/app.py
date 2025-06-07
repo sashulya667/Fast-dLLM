@@ -481,7 +481,7 @@ css = '''
 '''
 def create_chatbot_demo():
     with gr.Blocks(css=css) as demo:
-        gr.Markdown("#Fast-dLLM: Training-free Acceleration of Diffusion LLM by Enabling KV Cache and Parallel Decoding")
+        gr.Markdown("# Fast-dLLM: Training-free Acceleration of Diffusion LLM by Enabling KV Cache and Parallel Decoding")
         gr.Markdown("[code](https://github.com/NVlabs/Fast-dLLM), [project page](https://nvlabs.github.io/Fast-dLLM/)")
         
         # STATE MANAGEMENT
@@ -722,7 +722,25 @@ def create_chatbot_demo():
         
         def clear_conversation():
             """Clear the conversation history"""
-            return [], [], [], [], "", "", "", "", ""
+            empty_history = []
+            empty_response = ""
+            empty_vis = []
+            time_str = "0.00s"
+            throughput_str = "0.00 tokens/s"
+            
+            return (
+                empty_history,  # chat_history_baseline
+                empty_history,  # chat_history_cache
+                empty_history,  # chatbot_ui
+                empty_history,  # chatbot_ui_copy
+                empty_response,  # current_response
+                empty_vis,      # output_vis
+                time_str,       # generation_time
+                throughput_str, # throughput
+                empty_vis,      # output_vis_copy
+                time_str,       # generation_time_copy
+                throughput_str  # throughput_copy
+            )
         
         # EVENT HANDLERS
         
