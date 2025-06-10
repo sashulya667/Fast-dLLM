@@ -51,7 +51,7 @@ So, the total yards he can cut with the lawnmower is 8 + 4 = <<8+4=12>>12.
 Therefore, the total number of yards he can cut in a week is 12 x 7 = <<12*7=84>>84 yards.
 #### 84
 
-Question: Josh decides to try flipping a house.  He buys a house for $80,000 and then puts in $50,000 in repairs.  This increased the value of the house by 150%.  How much profit did he make?'''
+Question: Skyler has 100 hats on his hand with the colors red, blue, and white. Half of the hats are red, 3/5 of the remaining hats are blue, and the rest are white. How many white hats does Skyler have?'''
 
 def parse_constraints(constraints_text):
     """Parse constraints in format: 'position:word, position:word, ...'"""

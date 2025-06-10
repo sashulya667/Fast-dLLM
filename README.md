@@ -1,5 +1,6 @@
 # Fast-DLLM
-[![arXiv](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/abs/2505.22618 )
+[![Project](https://img.shields.io/static/v1?label=Project&message=Github&color=blue&logo=github-pages)](https://nvlabs.github.io/Fast-dLLM)
+[![arXiv](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/abs/2505.22618)
 
 Fast-DLLM is a diffusion-based Large Language Model (LLM) inference acceleration framework that supports efficient inference for models like Dream and LLaDA.
 
@@ -98,6 +99,15 @@ python app.py
 ```
 
 #### Model Evaluation
+| Benchmark         | Gen Length | LLaDA   | +Cache         | +Parallel      | +Cache+Parallel (Fast-dLLM) |
+|-------------------|------------|---------|----------------|----------------|-----------------------------|
+| **GSM8K (5-shot)**| 256        | 79.3<br>6.7 (1×) | 79.5<br>21.2 (3.2×) | 79.2<br>16.5 (2.5×) | 78.5<br>**54.4 (8.1×)** |
+|                   | 512        | 77.5<br>3.2 (1×) | 77.0<br>10.4 (3.3×) | 77.6<br>18.6 (5.8×) | 77.2<br>**35.3 (11.0×)** |
+| **HumanEval (0-shot)** | 256   | 41.5<br>30.5 (1×) | 42.7<br>40.7 (1.3×) | 43.9<br>101.5 (3.3×) | 43.3<br>**114.1 (3.7×)** |
+|                   | 512        | 43.9<br>18.4 (1×) | 45.7<br>29.3 (1.6×) | 43.3<br>57.1 (3.1×) | 44.5<br>**73.7 (4.0×)** |
+
+Each cell presents the accuracy (top row, in percentage) and the decoding throughput in tokens per second with relative speedup to the LLaDA baseline.
+
 For detailed evaluation instructions on GSM8K and HumanEval benchmarks, please refer to [LLaDA Evaluation Guide](llada/eval.md).
 
 ### 2. Using Dream Model
