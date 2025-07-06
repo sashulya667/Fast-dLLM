@@ -63,6 +63,7 @@ class LLaDAEvalHarness(LM):
         device="cuda",
         use_cache=False,
         threshold=None,
+        factor=None,
         save_dir=None,
         show_speed=False,
         dual_cache=False,
@@ -126,6 +127,7 @@ class LLaDAEvalHarness(LM):
         self.remasking = remasking
         self.use_cache = use_cache
         self.threshold = threshold
+        self.factor = factor
         self.is_instruct = True if 'instruct' in model_path.lower() else False
         self.save_dir = save_dir
         self.show_speed = show_speed
@@ -307,13 +309,13 @@ class LLaDAEvalHarness(LM):
             if self.use_cache:
                 if self.dual_cache:
                     generated_answer, nfe = generate_with_dual_cache(self.model, input_ids, steps=self.steps, gen_length=self.gen_length, block_length=self.block_length, 
-                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold)
+                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor)
                 else:
                     generated_answer, nfe = generate_with_prefix_cache(self.model, input_ids, steps=self.steps, gen_length=self.gen_length, block_length=self.block_length, 
-                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold)
+                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor)
             else:
                 generated_answer, nfe = generate(self.model, input_ids, steps=self.steps, gen_length=self.gen_length, block_length=self.block_length, 
-                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold)
+                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor)
 
             if self.is_instruct and 'task_id' in req.doc and str(req.doc['task_id']).lower().startswith('humaneval'):
                 if self.show_speed:

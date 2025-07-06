@@ -9,6 +9,14 @@ Fast-DLLM is a diffusion-based Large Language Model (LLM) inference acceleration
   <p>End-to-end speedup over vanilla LLaDA baseline</p>
 </div>
 
+
+## News
+
+* \[2025.07.06\] Added factor-based parallel strategy and LLaDA-1.5 evaluation in `llada/eval_gsm8k.sh`.
+* \[2025.07.04\] We updated our paper with latest improvements and evaluation results.
+* \[2025.06.30\] Fast-dLLM has been integrated into [LLaDA-V](https://github.com/ML-GSAI/LLaDA-V).
+
+
 ## Project Structure
 
 ```
