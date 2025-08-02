@@ -1,6 +1,7 @@
 # Fast-DLLM
 [![Project](https://img.shields.io/static/v1?label=Project&message=Github&color=blue&logo=github-pages)](https://nvlabs.github.io/Fast-dLLM)
 [![arXiv](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/abs/2505.22618)
+<a href="https://fast-dllm.hanlab.ai"><img src="https://img.shields.io/static/v1?label=Demo&message=Fast-dLLM&color=yellow"></a> &ensp;
 
 Fast-DLLM is a diffusion-based Large Language Model (LLM) inference acceleration framework that supports efficient inference for models like Dream and LLaDA.
 
@@ -11,7 +12,7 @@ Fast-DLLM is a diffusion-based Large Language Model (LLM) inference acceleration
 
 
 ## News
-
+* \[2025.08.01\] Our new online demo of Fast-dLLM: https://fast-dllm.hanlab.ai/, welcome to try!
 * \[2025.07.06\] Added factor-based parallel strategy and LLaDA-1.5 evaluation in `llada/eval_gsm8k.sh`.
 * \[2025.07.04\] We updated our paper with latest improvements and evaluation results.
 * \[2025.06.30\] Fast-dLLM has been integrated into [LLaDA-V](https://github.com/ML-GSAI/LLaDA-V). With Fast-dLLM, it acceleates the inference latency from 60s to 6s! Have a try [here](https://github.com/ML-GSAI/LLaDA-V/blob/main/train/generate_demo.py)!!
