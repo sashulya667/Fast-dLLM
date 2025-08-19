@@ -5,6 +5,16 @@
 
 Fast-DLLM is a diffusion-based Large Language Model (LLM) inference acceleration framework that supports efficient inference for models like Dream and LLaDA.
 
+## Demo
+
+<div align="center">
+  <video width="800" controls>
+    <source src="asset/multimodal_demo.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <p>Multimodal demo on Fast-dLLM for LLaDA-V with up to 10x speedup</p>
+</div>
+
 <div align="center">
   <img src="asset/speedup.jpg" alt="End-to-end speedup over vanilla LLaDA baseline" width="800"/>
   <p>End-to-end speedup over vanilla LLaDA baseline</p>
