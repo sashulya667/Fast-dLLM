@@ -569,14 +569,18 @@
 
         <!-- Video demonstration -->
         <div class="video-container">
-            <video controls>
-                <source src="asset/multimodal_demo.mp4" type="video/mp4">
-                Your browser does not support the video tag.
+            <video src="asset/multimodal_demo.mp4"
+                   autoplay
+                   muted
+                   loop
+                   playsinline
+                   controls>
+              Your browser does not support the video tag.
             </video>
             <figcaption>
-                Multimodal demo on Fast-dLLM for LLaDA-V with up to 10x speedup.
+              Multimodal demo on Fast-dLLM for LLaDA-V with up to 10x speedup.
             </figcaption>
-        </div>
+          </div>
 
         <div class="description-content">
           <h2>About Fast-dLLM</h2>
