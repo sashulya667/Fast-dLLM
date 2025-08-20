@@ -7,7 +7,7 @@ Fast-DLLM is a diffusion-based Large Language Model (LLM) inference acceleration
 
 ## Demo
 
-https://github.com/user-attachments/assets/3cb0a40a-779b-4186-a826-5f17a791e7b7
+https://github.com/user-attachments/assets/32bbff97-6e60-4e14-95c0-2cbec136476f
 
 <div align="center">
   <img src="asset/speedup.jpg" alt="End-to-end speedup over vanilla LLaDA baseline" width="800"/>
