@@ -728,13 +728,18 @@ class LLaDABlock(nn.Module):
                 # replace_position shape is [B, L], where L contains 0s and 1s, 0 means no replacement, 1 means replace, with selected_length number of 1s
                 # past_key shape is [B, n_kv_h, L, hs]
                 # Replace selected_length number of 1s in past_key with k
-                # Get the indices that need to be replaced
-                replace_indices = replace_position.nonzero(as_tuple=True)[1]  # [selected_length]
-                # Use scatter operation to perform replacement
-                past_key[:, :, replace_indices] = k
+                
+                # Handle batched replace_position correctly
+                B = replace_position.shape[0]
+                for batch_idx in range(B):
+                    # Get indices for this batch
+                    batch_replace_indices = replace_position[batch_idx].nonzero(as_tuple=True)[0]
+                    if len(batch_replace_indices) > 0:
+                        # Replace positions in past_key and past_value for this batch
+                        past_key[batch_idx, :, batch_replace_indices] = k[batch_idx, :, :len(batch_replace_indices)]
+                        past_value[batch_idx, :, batch_replace_indices] = v[batch_idx, :, :len(batch_replace_indices)]
+                
                 k = past_key
-                # Perform the same operation for value
-                past_value[:, :, replace_indices] = v
                 v = past_value
 
         present = (k, v) if use_cache else None #present: None
@@ -745,7 +750,9 @@ class LLaDABlock(nn.Module):
             if replace_position is None:
                 q, k = self.rotary_emb(q, k)
             else:
-                q, k = self.rotary_emb(q, k, replace_indices.max()+1)
+                # For batched replace_position, use the maximum position across all batches
+                max_replace_pos = replace_position.nonzero(as_tuple=True)[1].max() + 1 if replace_position.any() else key_len
+                q, k = self.rotary_emb(q, k, max_replace_pos)
 
         if attention_bias is not None:
             # Resize and cast attention bias.
