@@ -532,7 +532,7 @@
             <p style="font-size: 1.3em; margin-bottom: 5px;">
                 <a href="https://hills-code.github.io/" target="_blank" style="color: #76b900;">Chengyue Wu</a><sup>1,2</sup>,
                 <a href="https://haozhang534.github.io/" target="_blank" style="color: #76b900;">Hao Zhang</a><sup>2</sup>,
-                <a href="https://scholar.google.com/citations?user=aA70TOwAAAAJ&hl=en" target="_blank" style="color: #76b900;">Shuchen Xue</a><sup>4</sup>,
+                <a href="https://scholar.google.com/citations?user=aA70TOwAAAAJ&hl=en" target="_blank" style="color: #76b900;">Shuchen Xue</a>,
                 <a href="https://scholar.google.com/citations?user=NDFQrLQAAAAJ&hl=en" target="_blank" style="color: #76b900;">Shizhe Diao</a><sup>2</sup>,
                 <a href="https://www.yongganfu.com/" target="_blank" style="color: #76b900;">Yonggan Fu</a><sup>2</sup>,
                 <a href="https://zhijianliu.com/" target="_blank" style="color: #76b900;">Zhijian Liu</a><sup>2</sup>,
@@ -542,7 +542,7 @@
                 <a href="https://xieenze.github.io/" target="_blank" style="color: #76b900;">Enze Xie</a><sup>2</sup>
             </p>
             <p style="font-size: 1.2em; color: #888;">
-                <sup>1</sup>HKU, <sup>2</sup>NVIDIA, <sup>3</sup>MIT, <sup>4</sup>Independent Researcher
+                <sup>1</sup>HKU, <sup>2</sup>NVIDIA, <sup>3</sup>MIT
                 <!-- <br> -->
                 <!-- *Equal contribution -->
             </p>
@@ -570,8 +570,8 @@
         
         <div class="description-content">
           <h2>About Fast-dLLM v2</h2>
-          <p> Autoregressive (AR) large language models (LLMs) have achieved remarkable performance across a wide range of natural language tasks. However, their inherent sequential decoding limits inference efficiency. In this work, we propose Fast-dLLM v2, a carefully designed block diffusion language model (dLLM) that transforms a pretrained AR model—specifically, Qwen-2.5-1.5B-Instruct—into a diffusion-style decoder for parallel text generation.
-            Our approach introduces a novel decoding recipe incorporating a complementary attention mask and block diffusion mechanism, which together enable blockwise bidirectional context modeling while preserving the original AR training objectives and performance. To further enhance inference speed, we design a hierarchical caching mechanism: a block-level cache that stores historical context representations and a sub-block level cache that supports efficient parallel decoding within partially generated blocks.
+          <p> Autoregressive (AR) large language models (LLMs) have achieved remarkable performance across a wide range of natural language tasks. However, their inherent sequential decoding limits inference efficiency. In this work, we propose Fast-dLLM v2, a carefully designed block diffusion language model (dLLM) that transforms pretrained AR models into diffusion-style decoders for parallel text generation.
+            Our approach introduces a novel decoding recipe incorporating the block diffusion mechanism and complementary attention mask, which together enable blockwise bidirectional context modeling while preserving the original AR training objectives and performance. To further enhance inference speed, we design a hierarchical caching mechanism: a block-level cache that stores historical context representations and a sub-block level cache that supports efficient parallel decoding within partially generated blocks.
             Coupled with our parallel decoding pipeline, Fast-dLLM v2 achieves a near 2.5x speedup over standard AR decoding, without compromising generation quality. Extensive experiments demonstrate that Fast-dLLM v2 achieves state-of-the-art trade-offs between efficiency and performance among existing diffusion-based LLMs, marking a significant step toward practical deployment of fast and accurate language models.
             </p>
         </div>
