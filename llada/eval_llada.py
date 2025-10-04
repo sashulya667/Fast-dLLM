@@ -96,15 +96,6 @@ class LLaDAEvalHarness(LM):
         
         # SETTING SEED
         set_seed(123_987_4_6_5)
-
-        run_name = f"{Path(model_path).name}_steps{self.steps}_block{self.block_length}"
-        if self.threshold is not None:
-            run_name += f"_thr{self.threshold:.3f}"
-        else:
-            run_name += "_no_skip"
-
-        self.run_dir = Path("similarity_runs") / run_name
-        self.run_dir.mkdir(parents=True, exist_ok=True)
         
         accelerator = accelerate.Accelerator()
         if accelerator.num_processes > 1:
@@ -152,6 +143,16 @@ class LLaDAEvalHarness(LM):
         self.dual_cache = dual_cache
 
         # ####################### Sanzhar: hooks to trace the activations ############################
+
+        run_name = f"{Path(model_path).name}_steps{self.steps}_block{self.block_length}"
+        if self.threshold is not None:
+            run_name += f"_thr{self.threshold:.3f}"
+        else:
+            run_name += "_no_skip"
+
+        self.run_dir = Path("similarity_runs") / run_name
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        
         self.activations = defaultdict(list)
         self._prev_block_vecs = {}
 
