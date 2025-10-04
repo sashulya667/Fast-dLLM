@@ -42,6 +42,8 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
 
+LAST_RESULTS = None        # will hold the lm-eval results dict
+LAST_RUN_DIR = None        # will hold your run_dir path
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -152,6 +154,8 @@ class LLaDAEvalHarness(LM):
 
         self.run_dir = Path("similarity_runs") / run_name
         self.run_dir.mkdir(parents=True, exist_ok=True)
+
+        globals()["LAST_RUN_DIR"] = str(self.run_dir)
 
         self.activations = defaultdict(list)
         self._prev_block_vecs = {}
@@ -532,39 +536,43 @@ class LLaDAEvalHarness(LM):
 
 if __name__ == "__main__":
     from lm_eval import evaluator
-    from lm_eval.__main__ import parse_args
+    import json
+    from pathlib import Path
 
-    # Parse the same CLI args that cli_evaluate() uses
-    args = parse_args()
+    # wrap simple_evaluate to capture its return value
+    orig_simple_evaluate = evaluator.simple_evaluate
+    def simple_evaluate_captor(*args, **kwargs):
+        result = orig_simple_evaluate(*args, **kwargs)
+        # store globally for after cli_evaluate() returns
+        globals()["LAST_RESULTS"] = result
+        return result
+    evaluator.simple_evaluate = simple_evaluate_captor
 
-    # Run the evaluator manually instead of cli_evaluate()
-    results = evaluator.simple_evaluate(
-        model=args.model,
-        model_args=args.model_args,
-        tasks=args.tasks,
-        num_fewshot=args.num_fewshot,
-        batch_size=args.batch_size,
-        limit=args.limit,
-        seed=args.seed,
-        device=args.device,
-        trust_remote_code=args.trust_remote_code,
-        confirm_run_unsafe_code=args.confirm_run_unsafe_code,
-    )
+    # run the normal CLI flow
+    cli_evaluate()
 
-    # Save metrics to your file
-    accuracy = None
-    if "gsm8k" in results.get("results", {}):
-        gsm8k_res = results["results"]["gsm8k"]
-        # Pick whichever metric is available
-        accuracy = gsm8k_res.get("exact_match,strict-match") or gsm8k_res.get("exact_match,flexible-extract")
+    # after evaluation, merge accuracy into your metrics.json
+    results = globals().get("LAST_RESULTS")
+    run_dir = globals().get("LAST_RUN_DIR")
 
-    metrics_path = Path("similarity_runs") / "combined_metrics.json"
-    summary = {
-        "accuracy": accuracy,
-        "results": results["results"],
-    }
+    if results and run_dir:
+        gsm = results.get("results", {}).get("gsm8k", {})
+        acc = gsm.get("exact_match,strict-match", None)
+        if acc is None:
+            acc = gsm.get("exact_match,flexible-extract", None)
 
-    with open(metrics_path, "w") as f:
-        json.dump(summary, f, indent=2)
+        metrics_fp = Path(run_dir) / "metrics.json"
+        merged = {}
+        if metrics_fp.exists():
+            try:
+                merged = json.loads(metrics_fp.read_text())
+            except Exception:
+                merged = {}
 
-    print(f"[OK] Saved full evaluation results to {metrics_path}")
+        merged["accuracy"] = acc
+        merged["harness_results"] = results.get("results", {})
+
+        metrics_fp.write_text(json.dumps(merged, indent=2))
+        print(f"[OK] Merged accuracy ({acc}) into {metrics_fp}")
+    else:
+        print("[Warn] Could not merge accuracy: missing LAST_RESULTS or LAST_RUN_DIR")
