@@ -43,6 +43,11 @@ from model.modeling_dream import DreamModel
 import time
 import os
 import json
+from pathlib import Path
+from collections import defaultdict
+import matplotlib.pyplot as plt
+import numpy as np
+
 
 eval_logger = logging.getLogger(__name__)
 T = TypeVar("T", bound="LM")
@@ -86,6 +91,20 @@ class Dream(LM):
         assert isinstance(device, str)
         assert isinstance(pretrained, str)
         assert isinstance(batch_size, (int, str))
+
+        self.model_path = pretrained
+        run_bits = [
+            Path(pretrained).name.replace("/", "__"),
+            f"steps{diffusion_steps}",
+            f"maxnew{max_new_tokens}",
+            ("thr%.3f" % threshold) if threshold is not None else "no_skip",
+            "dualcache" if dual_cache else ("cache" if use_cache else "nocache"),
+        ]
+        self.run_dir = Path("dream_runs") / "_".join(run_bits)
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+
+        self._rank = 0
+        self._world_size = 1
 
         gpus = torch.cuda.device_count()
         accelerator_kwargs = InitProcessGroupKwargs(timeout=timedelta(weeks=52))
@@ -211,6 +230,62 @@ class Dream(LM):
         self.dual_cache = dual_cache
         self.generated_token_num = 0
         self.save_dir = save_dir
+
+        self.activations = defaultdict(list)
+        self._prev_block_vecs = {}
+        self.skip_counts = defaultdict(int)
+
+        def _make_hook(layer_idx):
+            def hook(module, inputs, output):
+                x = output[0] if isinstance(output, (tuple, list)) else output
+                v = F.normalize(x.mean(dim=(0, 1)).float(), dim=0)
+                self.activations[layer_idx].append(v.detach().cpu())
+                self._prev_block_vecs.setdefault(layer_idx, []).append(v)
+            return hook
+
+        def _iter_transformer_blocks(m):
+            for attr in ["model", "transformer", "gpt_neox", "llama", "backbone"]:
+                obj = getattr(m, attr, None)
+                if obj is None:
+                    continue
+                for sub in ["layers", "h", "blocks"]:
+                    cont = getattr(obj, sub, None)
+                    if isinstance(cont, (list, torch.nn.ModuleList)):
+                        return list(cont)
+            for sub in ["layers", "h", "blocks"]:
+                cont = getattr(m, sub, None)
+                if isinstance(cont, (list, torch.nn.ModuleList)):
+                    return list(cont)
+            return []
+
+        blocks = _iter_transformer_blocks(self.model)
+        for i, block in enumerate(blocks):
+            block.register_forward_hook(_make_hook(i))
+
+        def _wrap_with_skip(block, idx, tau=0.95, keep_first=2, keep_last=4):
+            orig_forward = block.forward
+            prev_vec = {"v": None}
+
+            def new_forward(*args, **kwargs):
+                x_in = args[0]
+                vec = F.normalize(x_in.mean(dim=(0, 1)).float(), dim=0)
+                allow = keep_first <= idx < (len(blocks) - keep_last)
+                if allow and prev_vec["v"] is not None:
+                    sim = torch.dot(vec, prev_vec["v"]).item()
+                    if sim > tau:
+                        self.skip_counts[idx] += 1
+                        return x_in
+                out = orig_forward(*args, **kwargs)
+                out_hidden = out[0] if isinstance(out, (tuple, list)) else out
+                prev_vec["v"] = F.normalize(out_hidden.mean(dim=(0, 1)).float(), dim=0)
+                return out
+
+            block.forward = new_forward
+
+        if (self.threshold is not None) and blocks:
+            for i, b in enumerate(blocks):
+                _wrap_with_skip(b, i, tau=self.threshold)
+
     @property
     def batch_size(self):
         return self.batch_size_per_gpu
@@ -395,6 +470,69 @@ class Dream(LM):
         print(f"Time taken: {end_time - start_time} seconds")
         print(f"Generated token num: {self.generated_token_num}")
         print(f"Generated token num per second: {self.generated_token_num / (end_time - start_time)}")
+
+        # ADD — similarity artifacts
+        if len(self.activations) > 0:
+            # Within-step similarity for final forward pass
+            last_vecs = [v[-1] for _, v in sorted(self.activations.items()) if len(v) > 0]
+            if last_vecs:
+                V = torch.stack(last_vecs)
+                sim_matrix = (V @ V.T).cpu().numpy()
+
+                plt.imshow(sim_matrix, cmap="coolwarm", vmin=0, vmax=1)
+                plt.colorbar(label="Cosine similarity")
+                plt.title("Within-step similarity")
+                plt.savefig(self.run_dir / "within_step.png", dpi=200)
+                np.save(self.run_dir / "within_step.npy", sim_matrix)
+
+            # Across-step similarity (per block, consecutive calls)
+            across = []
+            for idx, vec_list in sorted(self._prev_block_vecs.items()):
+                sims = []
+                for t in range(1, len(vec_list)):
+                    sims.append(torch.dot(vec_list[t], vec_list[t - 1]).item())
+                if sims:
+                    across.append(sims)
+
+            if across:
+                A = np.stack(across)
+                plt.figure(figsize=(8, 4))
+                for i in range(A.shape[0]):
+                    plt.plot(range(1, A.shape[1] + 1), A[i], alpha=0.6)
+                plt.xlabel("Step")
+                plt.ylabel("Cosine similarity to previous step")
+                plt.title("Across-step similarity per block")
+                plt.savefig(self.run_dir / "across_step.png", dpi=200)
+                np.save(self.run_dir / "across_step.npy", A)
+            else:
+                A = None
+
+        # ADD — skip stats (if any)
+        if hasattr(self, "skip_counts") and len(self.skip_counts) > 0:
+            with open(self.run_dir / "skip_stats.json", "w") as f:
+                json.dump(self.skip_counts, f, indent=2)
+
+        # ADD — metrics summary
+        summary = {
+            "model": self.model_path,
+            "device": str(self.device),
+            "diffusion_steps": self.diffusion_steps,
+            "max_new_tokens": self.max_new_tokens,
+            "threshold": self.threshold,
+            "use_cache": self.use_cache,
+            "dual_cache": self.dual_cache,
+            "alg": self.alg,
+            "alg_temp": self.alg_temp,
+            "runtime_sec": end_time - start_time,
+            "generated_tokens": self.generated_token_num,
+            "tokens_per_sec": (self.generated_token_num / (end_time - start_time)) if (end_time > start_time) else None,
+            "within_step_mean": float(sim_matrix.mean()) if len(self.activations) > 0 and last_vecs else None,
+            "within_step_max": float(sim_matrix.max()) if len(self.activations) > 0 and last_vecs else None,
+            "across_step_mean": float(A.mean()) if isinstance(A, np.ndarray) else None,
+            "responses_file": str(self.run_dir / f"responses_rank_{getattr(self, 'rank', 0)}.jsonl"),
+        }
+        with open(self.run_dir / "metrics.json", "w") as f:
+            json.dump(summary, f, indent=2)
 
         return res
 

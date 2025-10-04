@@ -37,6 +37,12 @@ from generate import generate, generate_with_prefix_cache, generate_with_dual_ca
 from model.modeling_llada import LLaDAModelLM
 import json
 import time
+from collections import defaultdict
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import numpy as np
+
+
 def set_seed(seed):
     torch.manual_seed(seed)
     random.seed(seed)
@@ -50,7 +56,7 @@ def set_seed(seed):
 class LLaDAEvalHarness(LM):
     def __init__(
         self,
-        model_path='',
+        model_path='GSAI-ML/LLaDA-8B-Instruct',
         mask_id=126336,
         max_length=4096,
         batch_size=32,
@@ -87,7 +93,19 @@ class LLaDAEvalHarness(LM):
             cfg_scale: Unsupervised classifier-free guidance scale.
         '''
         super().__init__()
+        
+        # SETTING SEED
+        set_seed(123_987_4_6_5)
 
+        run_name = f"{Path(model_path).name}_steps{self.steps}_block{self.block_length}"
+        if self.threshold is not None:
+            run_name += f"_thr{self.threshold:.3f}"
+        else:
+            run_name += "_no_skip"
+
+        self.run_dir = Path("similarity_runs") / run_name
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        
         accelerator = accelerate.Accelerator()
         if accelerator.num_processes > 1:
             self.accelerator = accelerator
@@ -132,6 +150,51 @@ class LLaDAEvalHarness(LM):
         self.save_dir = save_dir
         self.show_speed = show_speed
         self.dual_cache = dual_cache
+
+        # ####################### Sanzhar: hooks to trace the activations ############################
+        self.activations = defaultdict(list)
+        self._prev_block_vecs = {}
+
+        def _make_hook(layer_idx):
+            def hook(module, inputs, output):
+                x = output[0] if isinstance(output, (tuple, list)) else output
+                v = F.normalize(x.mean(dim=(0, 1)).float(), dim=0)
+                self.activations[layer_idx].append(v.detach().cpu())
+                self._prev_block_vecs.setdefault(layer_idx, []).append(v)
+            return hook
+
+        for i, block in enumerate(self.model.model.transformer.blocks):
+            block.register_forward_hook(_make_hook(i))
+
+        self.skip_counts = getattr(self, "skip_counts", defaultdict(int))
+
+        def wrap_with_skip(block, idx, tau=0.95, keep_first=2, keep_last=4):
+            orig_forward = block.forward
+            prev_vec = {"v": None}
+
+
+            def new_forward(*args, **kwargs):
+                x_in = args[0]
+                vec = F.normalize(x_in.mean(dim=(0, 1)).float(), dim=0)
+                skip_allowed = keep_first <= idx < len(self.model.model.transformer.blocks) - keep_last
+                if skip_allowed and prev_vec["v"] is not None:
+                    sim = torch.dot(vec, prev_vec["v"]).item()
+                    if sim > tau:
+                        self.skip_counts[idx] += 1
+                        return x_in
+                out = orig_forward(*args, **kwargs)
+                out_hidden = out[0] if isinstance(out, (tuple, list)) else out
+                prev_vec["v"] = F.normalize(out_hidden.mean(dim=(0, 1)).float(), dim=0)
+                return out
+
+            block.forward = new_forward
+
+        if self.threshold is not None:
+            for i, block in enumerate(self.model.model.transformer.blocks):
+                wrap_with_skip(block, i, tau=self.threshold)
+
+        ############################################################################################
+
     @property
     def rank(self):
         return self._rank
@@ -390,7 +453,61 @@ class LLaDAEvalHarness(LM):
             print(f"Total time taken: {end_time - start_time} seconds")
             print(f"Tokens per second: {num_tokens / (end_time - start_time)}")
             print(f"Total NFE is {num_nfe}")
-            
+        
+        # ####################### Sanzhar: logging results #########################################
+        if len(self.activations) > 0:
+
+            # Within-step similarity for final forward pass
+            last_vecs = [v[-1] for _, v in sorted(self.activations.items())]
+            V = torch.stack(last_vecs)
+            sim_matrix = (V @ V.T).cpu().numpy()
+
+            plt.imshow(sim_matrix, cmap="coolwarm", vmin=0, vmax=1)
+            plt.colorbar(label="Cosine similarity")
+            plt.title("Within-step similarity")
+            plt.savefig(f"{self.run_dir}/within_step.png", dpi=200)
+            np.save(f"{self.run_dir}/within_step.npy", sim_matrix)
+
+            # Across-step similarity (if multiple steps)
+            across = []
+            for idx, vec_list in sorted(self._prev_block_vecs.items()):
+                sims = []
+                for t in range(1, len(vec_list)):
+                    sims.append(torch.dot(vec_list[t], vec_list[t - 1]).item())
+                across.append(sims)
+            if across and len(across[0]) > 0:
+                A = np.stack(across)
+                plt.figure(figsize=(8, 4))
+                for i in range(A.shape[0]):
+                    plt.plot(range(1, A.shape[1] + 1), A[i], alpha=0.6)
+                plt.xlabel("Step")
+                plt.ylabel("Cosine similarity to previous step")
+                plt.title("Across-step similarity per block")
+                plt.savefig(f"{self.run_dir}/across_step.png", dpi=200)
+                np.save(f"{self.run_dir}/across_step.npy", A)
+        
+        if hasattr(self, "skip_counts"):
+            with open(f"{self.run_dir}/skip_stats.json", "w") as f:
+                json.dump(self.skip_counts, f, indent=2)
+
+        summary = {
+            "within_step_mean": float(sim_matrix.mean()),
+            "within_step_max": float(sim_matrix.max()),
+            "across_step_mean": float(A.mean()) if across and len(across[0]) > 0 else None,
+            "skip_counts": dict(self.skip_counts),
+            "num_tokens": num_tokens,
+            "num_nfe": num_nfe,
+            "tokens_per_sec": num_tokens / (end_time - start_time) if self.show_speed else None,
+            "runtime_sec": end_time - start_time,
+            "threshold": self.threshold,
+            "steps": self.steps,
+            "block_length": self.block_length
+        }
+        with open(self.run_dir / "metrics.json", "w") as f:
+            json.dump(summary, f, indent=2)
+
+        ############################################################################################
+
         return output
 
 
