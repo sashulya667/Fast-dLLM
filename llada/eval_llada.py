@@ -533,6 +533,7 @@ class LLaDAEvalHarness(LM):
 if __name__ == "__main__":
     from lm_eval import evaluator
     from lm_eval.api import registry
+    from lm_eval.api.model import LM
 
     orig_simple_evaluate = evaluator.simple_evaluate
 
@@ -541,20 +542,26 @@ if __name__ == "__main__":
 
         lm = None
 
-        # Try all possible sources
+        # Try the standard keyword names first
         for key in ["lm", "model", "model_obj"]:
             if isinstance(kwargs.get(key), LM):
                 lm = kwargs[key]
                 break
 
-        # If a string name like "llada_dist", try registry lookup
+        # Try positional args if present
+        if lm is None and len(args) > 0 and isinstance(args[0], LM):
+            lm = args[0]
+
+        # Try to resolve by registry if we only got a string
         if lm is None:
             model_name = kwargs.get("model") or kwargs.get("lm") or (args[0] if args else None)
-            if isinstance(model_name, str) and model_name in registry.MODELS:
-                try:
-                    lm = registry.MODELS[model_name]()
-                except Exception:
-                    lm = None
+            if isinstance(model_name, str):
+                model_registry = getattr(registry, "_MODEL_REGISTRY", None) or getattr(registry, "MODELS", {})
+                if model_registry and model_name in model_registry:
+                    try:
+                        lm = model_registry[model_name]()
+                    except Exception:
+                        lm = None
 
         if lm is not None:
             try:
@@ -570,5 +577,3 @@ if __name__ == "__main__":
     evaluator.simple_evaluate = simple_evaluate_with_metrics
 
     cli_evaluate()
-
-    
