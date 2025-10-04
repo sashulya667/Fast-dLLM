@@ -544,7 +544,8 @@ class LLaDAEvalHarness(LM):
             "threshold": self.threshold,
             "steps": self.steps,
             "block_length": self.block_length,
-            "accuracy": accuracy
+            "accuracy": accuracy,
+            "static_skips": sorted(self.static_skips) if hasattr(self, "static_skips") else None,
         }
 
         with open(self.run_dir / "metrics.json", "w") as f:
