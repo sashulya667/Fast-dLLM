@@ -500,6 +500,12 @@ class LLaDAEvalHarness(LM):
                 return obj.item()
             return obj
 
+        accuracy = None
+        if hasattr(self, "last_eval_metrics"):
+            gsm8k_metrics = self.last_eval_metrics.get("gsm8k", {})
+            accuracy = gsm8k_metrics.get("exact_match,strict-match", None)
+
+
         summary = {
             "within_step_mean": float(sim_matrix.mean()) if 'sim_matrix' in locals() else None,
             "within_step_max": float(sim_matrix.max()) if 'sim_matrix' in locals() else None,
@@ -511,7 +517,8 @@ class LLaDAEvalHarness(LM):
             "runtime_sec": end_time - start_time,
             "threshold": self.threshold,
             "steps": self.steps,
-            "block_length": self.block_length
+            "block_length": self.block_length,
+            "accuracy": accuracy
         }
 
         with open(self.run_dir / "metrics.json", "w") as f:
@@ -524,5 +531,20 @@ class LLaDAEvalHarness(LM):
 
 
 if __name__ == "__main__":
+    from lm_eval import evaluator
+
+    orig_evaluate = evaluator.evaluate
+
+    def evaluate_with_metrics(*args, **kwargs):
+        result = orig_evaluate(*args, **kwargs)
+        lm = kwargs.get("lm") or args[0]
+        try:
+            lm.last_eval_metrics = result.get("results", {})
+        except Exception:
+            pass
+        return result
+
+    evaluator.evaluate = evaluate_with_metrics
+
     cli_evaluate()
     
