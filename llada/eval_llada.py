@@ -152,7 +152,7 @@ class LLaDAEvalHarness(LM):
 
         self.run_dir = Path("similarity_runs") / run_name
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.activations = defaultdict(list)
         self._prev_block_vecs = {}
 
@@ -491,10 +491,19 @@ class LLaDAEvalHarness(LM):
             with open(f"{self.run_dir}/skip_stats.json", "w") as f:
                 json.dump(self.skip_counts, f, indent=2)
 
+        def to_serializable(obj):
+            if isinstance(obj, torch.Tensor):
+                return obj.item() if obj.numel() == 1 else obj.tolist()
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            if isinstance(obj, (np.float32, np.float64, np.int32, np.int64)):
+                return obj.item()
+            return obj
+
         summary = {
-            "within_step_mean": float(sim_matrix.mean()),
-            "within_step_max": float(sim_matrix.max()),
-            "across_step_mean": float(A.mean()) if across and len(across[0]) > 0 else None,
+            "within_step_mean": float(sim_matrix.mean()) if 'sim_matrix' in locals() else None,
+            "within_step_max": float(sim_matrix.max()) if 'sim_matrix' in locals() else None,
+            "across_step_mean": float(A.mean()) if 'A' in locals() and A.size > 0 else None,
             "skip_counts": dict(self.skip_counts),
             "num_tokens": num_tokens,
             "num_nfe": num_nfe,
@@ -504,8 +513,10 @@ class LLaDAEvalHarness(LM):
             "steps": self.steps,
             "block_length": self.block_length
         }
+
         with open(self.run_dir / "metrics.json", "w") as f:
-            json.dump(summary, f, indent=2)
+            json.dump(summary, f, indent=2, default=to_serializable)
+
 
         ############################################################################################
 
