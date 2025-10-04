@@ -533,10 +533,10 @@ class LLaDAEvalHarness(LM):
 if __name__ == "__main__":
     from lm_eval import evaluator
 
-    orig_evaluate = evaluator.evaluate
+    orig_simple_evaluate = evaluator.simple_evaluate
 
-    def evaluate_with_metrics(*args, **kwargs):
-        result = orig_evaluate(*args, **kwargs)
+    def simple_evaluate_with_metrics(*args, **kwargs):
+        result = orig_simple_evaluate(*args, **kwargs)
         lm = kwargs.get("lm") or args[0]
         try:
             lm.last_eval_metrics = result.get("results", {})
@@ -544,7 +544,7 @@ if __name__ == "__main__":
             pass
         return result
 
-    evaluator.evaluate = evaluate_with_metrics
+    evaluator.simple_evaluate = simple_evaluate_with_metrics
 
     cli_evaluate()
     
