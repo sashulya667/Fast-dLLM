@@ -532,25 +532,39 @@ class LLaDAEvalHarness(LM):
 
 if __name__ == "__main__":
     from lm_eval import evaluator
+    from lm_eval.api import registry
 
     orig_simple_evaluate = evaluator.simple_evaluate
 
     def simple_evaluate_with_metrics(*args, **kwargs):
         result = orig_simple_evaluate(*args, **kwargs)
-        lm = (
-            kwargs.get("lm")
-            or kwargs.get("model")
-            or kwargs.get("model_obj")
-            or (args[0] if len(args) > 0 else None)
-        )
+
+        lm = None
+
+        # Try all possible sources
+        for key in ["lm", "model", "model_obj"]:
+            if isinstance(kwargs.get(key), LM):
+                lm = kwargs[key]
+                break
+
+        # If a string name like "llada_dist", try registry lookup
+        if lm is None:
+            model_name = kwargs.get("model") or kwargs.get("lm") or (args[0] if args else None)
+            if isinstance(model_name, str) and model_name in registry.MODELS:
+                try:
+                    lm = registry.MODELS[model_name]()
+                except Exception:
+                    lm = None
+
         if lm is not None:
             try:
                 lm.last_eval_metrics = result.get("results", {})
-                print("[OK] Attached eval metrics to model.")
+                print(f"[OK] Attached eval metrics to model {lm.__class__.__name__}")
             except Exception as e:
                 print(f"[Warning] Failed to attach eval metrics: {e}")
         else:
-            print("[Warning] Could not find model reference in simple_evaluate() call.")
+            print("[Warning] Could not find LM object to attach metrics.")
+
         return result
 
     evaluator.simple_evaluate = simple_evaluate_with_metrics
