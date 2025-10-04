@@ -103,9 +103,10 @@ class Dream(LM):
             f"maxnew{max_new_tokens}",
             ("thr%.3f" % threshold) if threshold is not None else "no_skip",
             "dualcache" if dual_cache else ("cache" if use_cache else "nocache"),
+            f"note_{note}" if note else None,
         ]
-        if note:
-            run_bits.append(str(note))
+        run_bits = [x for x in run_bits if x]
+
 
         self.run_dir = Path("dream_runs") / "_".join(run_bits)
         print(f"[INFO] Run dir: {self.run_dir}")
