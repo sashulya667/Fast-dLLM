@@ -217,7 +217,8 @@ class LLaDAEvalHarness(LM):
             for i, block in enumerate(self.model.model.transformer.blocks):
                 if i in self.static_skips:
                     def skip_forward(*args, **kwargs):
-                        return args[0]  # bypass block
+                        x = args[0]
+                        return x, None  # return both to satisfy unpacking
                     block.forward = skip_forward
         ############################################################################################
 
