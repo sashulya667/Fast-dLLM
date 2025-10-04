@@ -537,18 +537,24 @@ if __name__ == "__main__":
 
     def simple_evaluate_with_metrics(*args, **kwargs):
         result = orig_simple_evaluate(*args, **kwargs)
-        # `lm` is always passed via kwargs
-        lm = kwargs.get("lm", None)
+        lm = (
+            kwargs.get("lm")
+            or kwargs.get("model")
+            or kwargs.get("model_obj")
+            or (args[0] if len(args) > 0 else None)
+        )
         if lm is not None:
             try:
                 lm.last_eval_metrics = result.get("results", {})
+                print("[OK] Attached eval metrics to model.")
             except Exception as e:
                 print(f"[Warning] Failed to attach eval metrics: {e}")
         else:
-            print("[Info] simple_evaluate() had no lm argument — skipping metric attachment.")
+            print("[Warning] Could not find model reference in simple_evaluate() call.")
         return result
 
     evaluator.simple_evaluate = simple_evaluate_with_metrics
 
     cli_evaluate()
+
     
