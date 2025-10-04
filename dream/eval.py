@@ -48,6 +48,8 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
+LAST_RESULTS = None        # will hold the lm-eval results dict
+LAST_RUN_DIR = None        # will hold your run_dir path
 
 eval_logger = logging.getLogger(__name__)
 T = TypeVar("T", bound="LM")
@@ -102,6 +104,8 @@ class Dream(LM):
         ]
         self.run_dir = Path("dream_runs") / "_".join(run_bits)
         self.run_dir.mkdir(parents=True, exist_ok=True)
+
+        globals()["LAST_RUN_DIR"] = str(self.run_dir)
 
         self._rank = 0
         self._world_size = 1
@@ -513,6 +517,11 @@ class Dream(LM):
                 json.dump(self.skip_counts, f, indent=2)
 
         # ADD — metrics summary
+        responses_fp = self.run_dir / f"responses_rank_{getattr(self, 'rank', 0)}.jsonl"
+        with open(responses_fp, "w", encoding="utf-8") as f:
+            for r in res:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+
         summary = {
             "model": self.model_path,
             "device": str(self.device),
@@ -529,10 +538,12 @@ class Dream(LM):
             "within_step_mean": float(sim_matrix.mean()) if len(self.activations) > 0 and last_vecs else None,
             "within_step_max": float(sim_matrix.max()) if len(self.activations) > 0 and last_vecs else None,
             "across_step_mean": float(A.mean()) if isinstance(A, np.ndarray) else None,
-            "responses_file": str(self.run_dir / f"responses_rank_{getattr(self, 'rank', 0)}.jsonl"),
+            "responses_file": str(responses_fp),
         }
         with open(self.run_dir / "metrics.json", "w") as f:
             json.dump(summary, f, indent=2)
+
+        
 
         return res
 
@@ -742,4 +753,41 @@ class Dream(LM):
 
 
 if __name__ == "__main__":
+    from lm_eval import evaluator
+    from lm_eval.__main__ import cli_evaluate
+    import json
+    from pathlib import Path
+
+    orig_simple_evaluate = evaluator.simple_evaluate
+    def simple_evaluate_captor(*args, **kwargs):
+        result = orig_simple_evaluate(*args, **kwargs)
+        globals()["LAST_RESULTS"] = result
+        return result
+    evaluator.simple_evaluate = simple_evaluate_captor
+
     cli_evaluate()
+
+    results = globals().get("LAST_RESULTS")
+    run_dir = globals().get("LAST_RUN_DIR")
+
+    if results and run_dir:
+        gsm = results.get("results", {}).get("gsm8k", {})
+        acc = gsm.get("exact_match,strict-match", None)
+        if acc is None:
+            acc = gsm.get("exact_match,flexible-extract", None)
+
+        metrics_fp = Path(run_dir) / "metrics.json"
+        merged = {}
+        if metrics_fp.exists():
+            try:
+                merged = json.loads(metrics_fp.read_text())
+            except Exception:
+                merged = {}
+
+        merged["accuracy"] = acc
+        merged["harness_results"] = results.get("results", {})
+
+        metrics_fp.write_text(json.dumps(merged, indent=2))
+        print(f"[OK] Merged accuracy ({acc}) into {metrics_fp}")
+    else:
+        print("[Warn] Could not merge accuracy: missing LAST_RESULTS or LAST_RUN_DIR")
