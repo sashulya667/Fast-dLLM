@@ -80,7 +80,7 @@ class Dream(LM):
         alg: Optional[str] = "entropy",
         alg_temp: Optional[float] = 0.0,
         escape_until: Optional[bool] = False,
-        threshold: Optional[float] = 0.9,
+        threshold: Optional[float] = None,
         apply_chat_template: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         dual_cache: Optional[bool] = False,
