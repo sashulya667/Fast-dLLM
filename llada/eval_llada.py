@@ -532,48 +532,39 @@ class LLaDAEvalHarness(LM):
 
 if __name__ == "__main__":
     from lm_eval import evaluator
-    from lm_eval.api import registry
-    from lm_eval.api.model import LM
+    from lm_eval.__main__ import parse_args
 
-    orig_simple_evaluate = evaluator.simple_evaluate
+    # Parse the same CLI args that cli_evaluate() uses
+    args = parse_args()
 
-    def simple_evaluate_with_metrics(*args, **kwargs):
-        result = orig_simple_evaluate(*args, **kwargs)
+    # Run the evaluator manually instead of cli_evaluate()
+    results = evaluator.simple_evaluate(
+        model=args.model,
+        model_args=args.model_args,
+        tasks=args.tasks,
+        num_fewshot=args.num_fewshot,
+        batch_size=args.batch_size,
+        limit=args.limit,
+        seed=args.seed,
+        device=args.device,
+        trust_remote_code=args.trust_remote_code,
+        confirm_run_unsafe_code=args.confirm_run_unsafe_code,
+    )
 
-        lm = None
+    # Save metrics to your file
+    accuracy = None
+    if "gsm8k" in results.get("results", {}):
+        gsm8k_res = results["results"]["gsm8k"]
+        # Pick whichever metric is available
+        accuracy = gsm8k_res.get("exact_match,strict-match") or gsm8k_res.get("exact_match,flexible-extract")
 
-        # Try the standard keyword names first
-        for key in ["lm", "model", "model_obj"]:
-            if isinstance(kwargs.get(key), LM):
-                lm = kwargs[key]
-                break
+    metrics_path = Path("similarity_runs") / "combined_metrics.json"
+    summary = {
+        "accuracy": accuracy,
+        "results": results["results"],
+    }
 
-        # Try positional args if present
-        if lm is None and len(args) > 0 and isinstance(args[0], LM):
-            lm = args[0]
+    with open(metrics_path, "w") as f:
+        json.dump(summary, f, indent=2)
 
-        # Try to resolve by registry if we only got a string
-        if lm is None:
-            model_name = kwargs.get("model") or kwargs.get("lm") or (args[0] if args else None)
-            if isinstance(model_name, str):
-                model_registry = getattr(registry, "_MODEL_REGISTRY", None) or getattr(registry, "MODELS", {})
-                if model_registry and model_name in model_registry:
-                    try:
-                        lm = model_registry[model_name]()
-                    except Exception:
-                        lm = None
-
-        if lm is not None:
-            try:
-                lm.last_eval_metrics = result.get("results", {})
-                print(f"[OK] Attached eval metrics to model {lm.__class__.__name__}")
-            except Exception as e:
-                print(f"[Warning] Failed to attach eval metrics: {e}")
-        else:
-            print("[Warning] Could not find LM object to attach metrics.")
-
-        return result
-
-    evaluator.simple_evaluate = simple_evaluate_with_metrics
-
-    cli_evaluate()
+    print(f"[OK] Saved full evaluation results to {metrics_path}")
